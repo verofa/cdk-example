@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as ecs from "aws-cdk-lib/aws-ecs";
 
 export class EcsAlbStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -19,6 +19,10 @@ export class EcsAlbStack extends cdk.Stack {
           cidrMask: 24,
         },
       ],
+    });
+    const cluster = new ecs.Cluster(this, "PocCluster", {
+      vpc,
+      containerInsightsV2: ecs.ContainerInsights.ENABLED,
     });
     // example resource
     // const queue = new sqs.Queue(this, 'CdkExampleQueue', {
