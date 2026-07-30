@@ -24,7 +24,19 @@ export class EcsAlbStack extends cdk.Stack {
       vpc,
       containerInsightsV2: ecs.ContainerInsights.ENABLED,
     });
+    const tastDefinition = new ecs.FargateTaskDefinition(this, "PocTaskDef", {
+      cpu: 256,
+      memoryLimitMiB: 512,
+    });
+    tastDefinition.addContainer("AppContainer", {
+      image: ecs.ContainerImage.fromRegistry(
+        "public.ecr.aws/nginx/nginx:latest",
+      ),
+      logging: ecs.LogDriver.awsLogs({ streamPrefix: "poc-app" }),
+      portMappings: [{ containerPort: 80 }],
+    });
     // example resource
+    //
     // const queue = new sqs.Queue(this, 'CdkExampleQueue', {
     //   visibilityTimeout: cdk.Duration.seconds(300)
     // });
