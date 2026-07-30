@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 export class EcsAlbStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -44,9 +45,27 @@ export class EcsAlbStack extends cdk.Stack {
       minHealthyPercent: 100,
       maxHealthyPercent: 200,
     });
+    const alb = new elbv2.ApplicationLoadBalancer(this, "PocAlb", {
+      vpc,
+      internetFacing: true,
+    });
+
+    const listener = alb.addListener("PocListener", {
+      port: 80,
+      open: true,
+    });
+
+    listener.addTargets("PocTargets", {
+      port: 80,
+      targets: [service],
+      healthCheck: {
+        path: "/",
+        interval: cdk.Duration.seconds(30),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 5,
+      },
+    });
     // example resource
-    //
-    //
     // const queue = new sqs.Queue(this, 'CdkExampleQueue', {
     //   visibilityTimeout: cdk.Duration.seconds(300)
     // });
