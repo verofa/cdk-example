@@ -65,6 +65,12 @@ export class EcsAlbStack extends cdk.Stack {
         unhealthyThresholdCount: 5,
       },
     });
+    new cdk.CfnOutput(this, "AlbDnsName", {
+      value: alb.loadBalancerDnsName,
+      description: "Public DNS name of the ALB -- curl this after deploy",
+    });
+    new cdk.CfnOutput(this, "ClusterName", { value: cluster.clusterName });
+    new cdk.CfnOutput(this, "ServiceName", { value: service.serviceName });
     // example resource
     // const queue = new sqs.Queue(this, 'CdkExampleQueue', {
     //   visibilityTimeout: cdk.Duration.seconds(300)
