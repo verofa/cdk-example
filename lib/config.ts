@@ -7,6 +7,7 @@ export interface EnvironmentConfig {
   dbMultiAz: boolean;
   dbRemovalPolicy: cdk.RemovalPolicy;
   dbDeletionProtection: boolean;
+  dbBackupRetentionDays: number;
 }
 
 export const devConfig: EnvironmentConfig = {
@@ -16,6 +17,7 @@ export const devConfig: EnvironmentConfig = {
   dbMultiAz: false,
   dbRemovalPolicy: cdk.RemovalPolicy.DESTROY,
   dbDeletionProtection: false,
+  dbBackupRetentionDays: 0,
 };
 
 export const prodConfig: EnvironmentConfig = {
@@ -25,4 +27,5 @@ export const prodConfig: EnvironmentConfig = {
   dbMultiAz: true,
   dbRemovalPolicy: cdk.RemovalPolicy.RETAIN,
   dbDeletionProtection: true,
+  dbBackupRetentionDays: 7,
 };
