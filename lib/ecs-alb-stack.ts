@@ -1,17 +1,23 @@
 import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
+import { EnvironmentConfig } from "./config";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
+export interface EcsAlbStackProps extends cdk.StackProps {
+  config: EnvironmentConfig;
+}
+
 export class EcsAlbStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: EcsAlbStackProps) {
     super(scope, id, props);
+    const { config } = props;
 
     // The code that defines your stack goes here
     const vpc = new ec2.Vpc(this, "PocVpc", {
       maxAzs: 2,
-      natGateways: 1,
+      natGateways: config.natGateways,
       subnetConfiguration: [
         { name: "public", subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
         {
@@ -39,7 +45,7 @@ export class EcsAlbStack extends cdk.Stack {
     const service = new ecs.FargateService(this, "PocService", {
       cluster,
       taskDefinition,
-      desiredCount: 2,
+      desiredCount: config.desiredCount,
       assignPublicIp: false,
       circuitBreaker: { enable: true, rollback: true },
       minHealthyPercent: 100,
@@ -75,5 +81,6 @@ export class EcsAlbStack extends cdk.Stack {
     // const queue = new sqs.Queue(this, 'CdkExampleQueue', {
     //   visibilityTimeout: cdk.Duration.seconds(300)
     // });
+    cdk.Tags.of(this).add("Environment", config.envName);
   }
 }
