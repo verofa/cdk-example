@@ -11,6 +11,9 @@ export interface RdsSecretsStackProps extends cdk.StackProps {
 }
 
 export class RdsSecretsStack extends cdk.Stack {
+  public readonly vpc: ec2.Vpc;
+  public readonly dbSecurityGroup: ec2.ISecurityGroup;
+
   constructor(scope: Construct, id: string, props: RdsSecretsStackProps) {
     super(scope, id, props);
     const { config } = props;
@@ -26,6 +29,7 @@ export class RdsSecretsStack extends cdk.Stack {
         },
       ],
     });
+    this.vpc = vpc;
 
     const credentials = rds.Credentials.fromGeneratedSecret("dbadmin", {
       secretName: `${config.envName}/rds/dbadmin`,
@@ -77,5 +81,6 @@ export class RdsSecretsStack extends cdk.Stack {
     });
 
     cdk.Tags.of(this).add("Environment", config.envName);
+    this.dbSecurityGroup = dbInstance.connections.securityGroups[0];
   }
 }
