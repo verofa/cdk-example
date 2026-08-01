@@ -18,10 +18,6 @@ export class AppStage extends cdk.Stage {
       config: props.config,
     });
 
-    new RdsSecretsStack(this, "RdsSecretsStack", {
-      config: props.config,
-    });
-
     const rdsStack = new RdsSecretsStack(this, "RdsSecretsStack", {
       config: props.config,
     });
