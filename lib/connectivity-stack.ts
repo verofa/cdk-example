@@ -3,11 +3,14 @@ import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { EnvironmentConfig } from "./config";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as ecs from "aws-cdk-lib/aws-ecs";
 
 export interface ConnectivityStackProps extends cdk.StackProps {
   config: EnvironmentConfig;
   vpc: ec2.IVpc;
   dbSecurityGroup: ec2.ISecurityGroup;
+  appVpc: ec2.IVpc;
+  appCluster: ecs.ICluster;
 }
 
 export class ConnectivityStack extends cdk.Stack {
@@ -70,6 +73,39 @@ export class ConnectivityStack extends cdk.Stack {
       value: ssmInstance.instanceId,
       description:
         "Target for: aws ssm start-session --target <id> --document-name AWS-StartPortForwardingToRemoteHost",
+    });
+
+    const { appVpc, appCluster } = props; // add to the existing destructure line
+
+    //VPC Peering: give VPC A and VPC B a network path to each other
+    const peeringConnection = new ec2.CfnVPCPeeringConnection(
+      this,
+      "AppToDbPeering",
+      {
+        vpcId: appVpc.vpcId,
+        peerVpcId: vpc.vpcId,
+      },
+    );
+
+    // Peering alone doesn't route anything, both sides need an explicit
+    // route added to their route tables, or traffic still has nowhere to go.
+
+    // VPC A's app subnets -> VPC B, via the peering connection
+    appVpc.privateSubnets.forEach((subnet, index) => {
+      new ec2.CfnRoute(this, `AppToDbRoute${index}`, {
+        routeTableId: subnet.routeTable.routeTableId,
+        destinationCidrBlock: vpc.vpcCidrBlock,
+        vpcPeeringConnectionId: peeringConnection.ref,
+      });
+    });
+
+    // VPC B's isolated subnets -> VPC A, via the same connection (the return path)
+    vpc.isolatedSubnets.forEach((subnet, index) => {
+      new ec2.CfnRoute(this, `DbToAppRoute${index}`, {
+        routeTableId: subnet.routeTable.routeTableId,
+        destinationCidrBlock: appVpc.vpcCidrBlock,
+        vpcPeeringConnectionId: peeringConnection.ref,
+      });
     });
   }
 }

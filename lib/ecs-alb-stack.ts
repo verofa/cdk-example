@@ -10,6 +10,9 @@ export interface EcsAlbStackProps extends cdk.StackProps {
 }
 
 export class EcsAlbStack extends cdk.Stack {
+  public readonly vpc: ec2.Vpc;
+  public readonly cluster: ecs.Cluster;
+
   constructor(scope: Construct, id: string, props: EcsAlbStackProps) {
     super(scope, id, props);
     const { config } = props;
@@ -27,10 +30,14 @@ export class EcsAlbStack extends cdk.Stack {
         },
       ],
     });
+    this.vpc = vpc;
+
     const cluster = new ecs.Cluster(this, "PocCluster", {
       vpc,
       containerInsightsV2: ecs.ContainerInsights.ENABLED,
     });
+    this.cluster = cluster;
+
     const taskDefinition = new ecs.FargateTaskDefinition(this, "PocTaskDef", {
       cpu: 256,
       memoryLimitMiB: 512,

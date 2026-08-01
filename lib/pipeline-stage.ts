@@ -14,7 +14,7 @@ export class AppStage extends cdk.Stage {
   constructor(scope: Construct, id: string, props: AppStageProps) {
     super(scope, id, props);
 
-    new EcsAlbStack(this, "EcsAlbStack", {
+    const ecsStack = new EcsAlbStack(this, "EcsAlbStack", {
       config: props.config,
     });
 
@@ -26,6 +26,8 @@ export class AppStage extends cdk.Stage {
       config: props.config,
       vpc: rdsStack.vpc,
       dbSecurityGroup: rdsStack.dbSecurityGroup,
+      appVpc: ecsStack.vpc,
+      appCluster: ecsStack.cluster,
     });
   }
 }
