@@ -4,11 +4,14 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { EnvironmentConfig } from "./config";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 
 export interface ConnectivityStackProps extends cdk.StackProps {
   config: EnvironmentConfig;
   vpc: ec2.IVpc;
   dbSecurityGroup: ec2.ISecurityGroup;
+  dbEndpoint: string;
+  dbSecret: secretsmanager.ISecret;
   appVpc: ec2.IVpc;
   appCluster: ecs.ICluster;
 }
@@ -16,7 +19,15 @@ export interface ConnectivityStackProps extends cdk.StackProps {
 export class ConnectivityStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ConnectivityStackProps) {
     super(scope, id, props);
-    const { config, vpc, dbSecurityGroup } = props;
+    const {
+      config,
+      vpc,
+      dbSecurityGroup,
+      dbEndpoint,
+      dbSecret,
+      appVpc,
+      appCluster,
+    } = props;
 
     const localVpc = ec2.Vpc.fromVpcAttributes(this, "ImportedVpc", {
       vpcId: vpc.vpcId,
@@ -75,8 +86,6 @@ export class ConnectivityStack extends cdk.Stack {
         "Target for: aws ssm start-session --target <id> --document-name AWS-StartPortForwardingToRemoteHost",
     });
 
-    const { appVpc, appCluster } = props; // add to the existing destructure line
-
     //VPC Peering: give VPC A and VPC B a network path to each other
     const peeringConnection = new ec2.CfnVPCPeeringConnection(
       this,
@@ -106,6 +115,70 @@ export class ConnectivityStack extends cdk.Stack {
         destinationCidrBlock: appVpc.vpcCidrBlock,
         vpcPeeringConnectionId: peeringConnection.ref,
       });
+    });
+
+    const testTaskSecurityGroup = new ec2.SecurityGroup(
+      this,
+      "ConnectivityTestTaskSg",
+      {
+        vpc: appVpc,
+        description:
+          "One-off ECS task proving VPC A can reach the database in VPC B",
+        allowAllOutbound: true,
+      },
+    );
+
+    const testTaskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      "ConnectivityTestTaskDef",
+      {
+        cpu: 256,
+        memoryLimitMiB: 512,
+      },
+    );
+
+    testTaskDefinition.addContainer("ConnectivityTestContainer", {
+      image: ecs.ContainerImage.fromRegistry(
+        "public.ecr.aws/docker/library/postgres:16-alpine",
+      ),
+      logging: ecs.LogDrivers.awsLogs({ streamPrefix: "connectivity-test" }),
+      entryPoint: ["sh", "-c"],
+      command: [
+        'psql -c "SELECT version();" -c "SELECT current_database();" && echo CONNECTIVITY_TEST_PASSED',
+      ],
+      environment: {
+        PGHOST: dbEndpoint,
+        PGPORT: "5432",
+        PGDATABASE: "postgres",
+      },
+      secrets: {
+        PGUSER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
+        PGPASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
+      },
+    });
+
+    // Reuses the same importedDbSecurityGroup reference from the SSM section
+    // above -- a second ingress rule on it, this time for the app's task.
+    importedDbSecurityGroup.addIngressRule(
+      testTaskSecurityGroup,
+      ec2.Port.tcp(5432),
+      "Allow VPC A connectivity-test task to reach Postgres",
+    );
+
+    new cdk.CfnOutput(this, "ConnectivityTestClusterName", {
+      value: appCluster.clusterName,
+    });
+    new cdk.CfnOutput(this, "ConnectivityTestTaskDefArn", {
+      value: testTaskDefinition.taskDefinitionArn,
+    });
+    new cdk.CfnOutput(this, "ConnectivityTestSecurityGroupId", {
+      value: testTaskSecurityGroup.securityGroupId,
+    });
+    new cdk.CfnOutput(this, "ConnectivityTestSubnetIds", {
+      value: cdk.Fn.join(
+        ",",
+        appVpc.privateSubnets.map((s) => s.subnetId),
+      ),
     });
   }
 }

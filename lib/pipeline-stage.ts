@@ -26,6 +26,8 @@ export class AppStage extends cdk.Stage {
       config: props.config,
       vpc: rdsStack.vpc,
       dbSecurityGroup: rdsStack.dbSecurityGroup,
+      dbEndpoint: rdsStack.dbEndpoint,
+      dbSecret: rdsStack.dbSecret,
       appVpc: ecsStack.vpc,
       appCluster: ecsStack.cluster,
     });

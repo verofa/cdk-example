@@ -19,6 +19,7 @@ export class EcsAlbStack extends cdk.Stack {
 
     // The code that defines your stack goes here
     const vpc = new ec2.Vpc(this, "PocVpc", {
+      ipAddresses: ec2.IpAddresses.cidr("10.1.0.0/16"),
       maxAzs: 2,
       natGateways: config.natGateways,
       subnetConfiguration: [

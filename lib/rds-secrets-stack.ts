@@ -13,6 +13,8 @@ export interface RdsSecretsStackProps extends cdk.StackProps {
 export class RdsSecretsStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
   public readonly dbSecurityGroup: ec2.ISecurityGroup;
+  public readonly dbEndpoint: string;
+  public readonly dbSecret: secretsmanager.ISecret;
 
   constructor(scope: Construct, id: string, props: RdsSecretsStackProps) {
     super(scope, id, props);
@@ -53,6 +55,9 @@ export class RdsSecretsStack extends cdk.Stack {
       deletionProtection: config.dbDeletionProtection,
       backupRetention: cdk.Duration.days(config.dbBackupRetentionDays),
     });
+    this.dbSecurityGroup = dbInstance.connections.securityGroups[0];
+    this.dbEndpoint = dbInstance.dbInstanceEndpointAddress;
+    this.dbSecret = dbInstance.secret!;
 
     new ssm.StringParameter(this, "DbEndpointParam", {
       parameterName: `/${config.envName}/rds/endpoint`,
@@ -81,6 +86,5 @@ export class RdsSecretsStack extends cdk.Stack {
     });
 
     cdk.Tags.of(this).add("Environment", config.envName);
-    this.dbSecurityGroup = dbInstance.connections.securityGroups[0];
   }
 }
